@@ -1,8 +1,10 @@
 const express = require("express");
 
 const app = express();
+
 let gpsData = { lat: 0, lon: 0 }; // Última localização
 let routeHistory = []; // Histórico da rota
+let outBounds = false;
 
 app.get("/", (req, res) => {
   res.send(`
@@ -15,6 +17,8 @@ app.get("/", (req, res) => {
         <script>
           var map;
           var marker;
+          var outBounds = ${outBounds}; // Variável que indica se está fora da área
+
           var polyline;
 
           function initMap() {
@@ -39,9 +43,10 @@ app.get("/", (req, res) => {
               .bindPopup("<b>Localização Atual da Ambulância</b>")
               .openPopup();
 
-            // Desenha a rota se houver histórico
-            if (routeHistory.length > 1) {
-              polyline = L.polyline(routeHistory, { color: 'red' }).addTo(map);
+            
+            // Se a ambulância estiver fora da área, exibe um alerta na página
+            if (outBounds) {
+              alert("ALERTA: Ambulância fora da área!");
             }
           }
 
@@ -53,11 +58,23 @@ app.get("/", (req, res) => {
         <h1>Localização Atual</h1>
         <p>Latitude: ${gpsData.lat}</p>
         <p>Longitude: ${gpsData.lon}</p>
-        <a href="https://www.openstreetmap.org/?mlat=${gpsData.lat}&mlon=${gpsData.lon}#map=15/${gpsData.lat}/${gpsData.lon}" target="_blank">Abrir no OpenStreetMap</a>
+        <p><strong>${outBounds ? "ALERTA: Ambulância fora da área!" : "Ambulância dentro da área."}</strong></p>
+        <a href="https://www.openstreetmap.org/?mlat=${gpsData.lat}&mlon=${gpsData.lon}#map=15/${gpsData.lat}/${gpsData.lon}" target="_blank">Abrir no OpenStreetMap</a>]
         <div id="map" style="width: 100%; height: 500px;"></div>
       </body>
     </html>
   `);
+});
+
+app.get("/checkbounds", (req, res) => {
+  if (req.query.out !== undefined) { // Verifica se o parâmetro 'out' foi passado
+    let out = req.query.out === "true"; // Converte o valor para booleano
+    outBounds = out; // Atualiza a variável 'outBounds'
+    console.log(`Status de fora da área: ${outBounds ? "Fora da área" : "Dentro da área"}`);
+    res.send(`Status de fora da área atualizado para: ${outBounds ? "Fora da área" : "Dentro da área"}`);
+  } else {
+    res.status(400).send("Erro: O parâmetro 'out' não foi passado.");
+  }
 });
 
 app.get("/update", (req, res) => {
@@ -69,8 +86,8 @@ app.get("/update", (req, res) => {
     routeHistory.push([lat, lon]); // Armazena no histórico da rota
     console.log(`Nova localização: ${lat}, ${lon}`);
     
-    res.send("Localização atualizada e armazenada na rota!");
-  } else {
+    res.send(`Localização atualizada e armazenada na rota! ${gpsData.lat} e ${gpsData.lon}`);
+  } else {9
     res.send("Erro: Passe os parâmetros lat e lon.");
   }
 });
